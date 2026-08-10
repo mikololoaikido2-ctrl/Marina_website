@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TermX // Next-Gen Interactive Web Terminal</title>
+  <meta name="description" content="A powerful, feature-rich interactive web terminal simulator with custom themes, virtual file system, process manager, JS REPL, Matrix mode, and retro CRT effects.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="index.css">
+</head>
+<body class="theme-cyberpunk crt-enabled sound-enabled">
+
+  <!-- Background Canvas for Matrix / Glow ambient -->
+  <canvas id="bgCanvas"></canvas>
+  <div class="crt-overlay"></div>
+
+  <div class="app-container">
+    <!-- Top Bar Navigation & Window Controls -->
+    <header class="window-header">
+      <div class="window-controls">
+        <span class="dot dot-close" id="btnClose" title="Reset Session"></span>
+        <span class="dot dot-minimize" id="btnMinimize" title="Minimize Window"></span>
+        <span class="dot dot-maximize" id="btnMaximize" title="Fullscreen Terminal"></span>
+      </div>
+      <div class="window-title">
+        <span class="title-icon">⚡</span>
+        <span class="title-text">termx@hypervisor: ~ (zsh)</span>
+        <span class="session-badge" id="sessionStatus">ONLINE</span>
+      </div>
+      <div class="header-actions">
+        <!-- Quick Theme Selector -->
+        <div class="theme-dropdown-wrapper">
+          <label for="themeSelect" class="sr-only">Select Theme</label>
+          <select id="themeSelect" class="ui-select" title="Switch Theme">
+            <option value="theme-cyberpunk">🤖 Cyberpunk Neon</option>
+            <option value="theme-matrix">🟢 Matrix Digital</option>
+            <option value="theme-crt-amber">🟧 CRT Amber Vintage</option>
+            <option value="theme-dracula">🧛 Dracula Dark</option>
+            <option value="theme-nord">❄️ Nord Glass</option>
+            <option value="theme-tokyo">🗼 Tokyo Night</option>
+          </select>
+        </div>
+
+        <!-- Action Buttons -->
+        <button id="btnToggleSound" class="icon-btn active" title="Toggle Keyboard Audio (Audio On)">
+          <span class="btn-icon">🔊</span>
+        </button>
+        <button id="btnToggleCRT" class="icon-btn active" title="Toggle CRT Scanline Shader">
+          <span class="btn-icon">📺</span>
+        </button>
+        <button id="btnToggleSplit" class="icon-btn" title="Toggle Dual Terminal Split-Pane">
+          <span class="btn-icon">🔲</span>
+        </button>
+        <button id="btnToggleSidebar" class="icon-btn" title="Toggle File Tree & Cheat Sheet Drawer">
+          <span class="btn-icon">📁</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Workspace Content -->
+    <main class="workspace">
+      <!-- Side Navigation / Explorer Drawer -->
+      <aside class="sidebar collapsed" id="sidebarDrawer">
+        <div class="sidebar-tabs">
+          <button class="sidebar-tab active" data-tab="tab-fs">Filesystem</button>
+          <button class="sidebar-tab" data-tab="tab-commands">Command Guide</button>
+          <button class="sidebar-tab" data-tab="tab-system">System</button>
+        </div>
+
+        <div class="sidebar-body">
+          <!-- Filesystem Tree -->
+          <div class="tab-content active" id="tab-fs">
+            <div class="sidebar-section-header">VIRTUAL FILE EXPLORER</div>
+            <div id="fileExplorerTree" class="tree-view"></div>
+          </div>
+
+          <!-- Command Quick Reference -->
+          <div class="tab-content" id="tab-commands">
+            <div class="sidebar-section-header">COMMAND CHEAT SHEET</div>
+            <ul class="quick-cmd-list">
+              <li data-cmd="help"><span class="cmd-name">help</span> <span class="cmd-desc">List all available commands</span></li>
+              <li data-cmd="neofetch"><span class="cmd-name">neofetch</span> <span class="cmd-desc">Display system specs & logo</span></li>
+              <li data-cmd="htop"><span class="cmd-name">htop</span> <span class="cmd-desc">Interactive process manager</span></li>
+              <li data-cmd="ls -la"><span class="cmd-name">ls -la</span> <span class="cmd-desc">List detailed directory contents</span></li>
+              <li data-cmd="matrix"><span class="cmd-name">matrix</span> <span class="cmd-desc">Launch Matrix digital code rain</span></li>
+              <li data-cmd="snake"><span class="cmd-name">snake</span> <span class="cmd-desc">Play mini CLI snake arcade game</span></li>
+              <li data-cmd="js"><span class="cmd-name">js</span> <span class="cmd-desc">Interactive JavaScript REPL</span></li>
+              <li data-cmd="curl api/crypto"><span class="cmd-name">curl</span> <span class="cmd-desc">Fetch simulated live crypto quotes</span></li>
+              <li data-cmd="theme matrix"><span class="cmd-name">theme</span> <span class="cmd-desc">Switch terminal color theme</span></li>
+              <li data-cmd="clear"><span class="cmd-name">clear</span> <span class="cmd-desc">Clear screen buffer</span></li>
+            </ul>
+          </div>
+
+          <!-- System Monitor Quick Info -->
+          <div class="tab-content" id="tab-system">
+            <div class="sidebar-section-header">SYSTEM RESOURCES</div>
+            <div class="sys-widget">
+              <div class="sys-label">CPU LOAD</div>
+              <div class="progress-bar"><div class="progress-fill" id="sidebarCpuFill" style="width: 24%"></div></div>
+              <div class="sys-value" id="sidebarCpuText">24% (8 CORES)</div>
+            </div>
+            <div class="sys-widget">
+              <div class="sys-label">MEMORY USAGE</div>
+              <div class="progress-bar"><div class="progress-fill" id="sidebarRamFill" style="width: 48%"></div></div>
+              <div class="sys-value" id="sidebarRamText">7.68 GB / 16.0 GB</div>
+            </div>
+            <div class="sys-widget">
+              <div class="sys-label">UPTIME</div>
+              <div class="sys-value" id="sidebarUptime">04:12:39</div>
+            </div>
+            <div class="sys-widget">
+              <div class="sys-label">SESSION LOGS</div>
+              <div class="sys-value" id="sidebarLogCount">0 commands executed</div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Terminal Panes Container -->
+      <section class="terminal-workspace" id="terminalWorkspace">
+        <!-- Terminal Pane 1 (Primary) -->
+        <div class="terminal-pane active" id="pane1" data-pane-id="1">
+          <div class="pane-header">
+            <span class="pane-title">TTY 1 - Main Buffer</span>
+            <div class="pane-tools">
+              <button class="pane-btn btn-clear-pane" title="Clear Buffer">🧹</button>
+            </div>
+          </div>
+          <div class="terminal-output" id="output1"></div>
+          <div class="terminal-prompt-line">
+            <span class="prompt-user">user@termx</span>:<span class="prompt-path" id="promptPath1">~</span><span class="prompt-symbol">$</span>
+            <div class="input-wrapper">
+              <input type="text" class="terminal-input" id="input1" autocomplete="off" spellcheck="false" autofocus>
+              <div class="ghost-autocomplete" id="ghost1"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Terminal Pane 2 (Secondary - Hidden by default, toggled via Split) -->
+        <div class="terminal-pane hidden" id="pane2" data-pane-id="2">
+          <div class="pane-header">
+            <span class="pane-title">TTY 2 - Split Buffer</span>
+            <div class="pane-tools">
+              <button class="pane-btn btn-close-split" title="Close Split Pane">✖</button>
+            </div>
+          </div>
+          <div class="terminal-output" id="output2"></div>
+          <div class="terminal-prompt-line">
+            <span class="prompt-user">user@termx</span>:<span class="prompt-path" id="promptPath2">~</span><span class="prompt-symbol">$</span>
+            <div class="input-wrapper">
+              <input type="text" class="terminal-input" id="input2" autocomplete="off" spellcheck="false">
+              <div class="ghost-autocomplete" id="ghost2"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Bottom Status Bar -->
+    <footer class="system-statusbar">
+      <div class="status-left">
+        <span class="status-item"><span class="status-indicator online"></span> ONLINE</span>
+        <span class="status-item" id="statusCwd">PWD: /home/user</span>
+        <span class="status-item" id="statusEncoding">UTF-8</span>
+      </div>
+      <div class="status-center">
+        <span class="hint-text">Press <kbd>Tab</kbd> to Auto-complete | <kbd>Ctrl+L</kbd> to Clear | Type <kbd>help</kbd> for commands</span>
+      </div>
+      <div class="status-right">
+        <span class="status-item" id="statusTime">18:25:00 UTC</span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Fullscreen Modal for Matrix / Games -->
+  <div id="gameModal" class="modal-overlay hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <span id="modalTitle">MINI ARCADE TERMINAL</span>
+        <button id="btnCloseModal" class="modal-close-btn">&times; ESC to exit</button>
+      </div>
+      <div class="modal-body" id="modalBody">
+        <!-- Interactive canvas inserted here dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript Modules -->
+  <script src="js/audio.js"></script>
+  <script src="js/filesystem.js"></script>
+  <script src="js/commands.js"></script>
+  <script src="js/matrix.js"></script>
+  <script src="js/games.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
